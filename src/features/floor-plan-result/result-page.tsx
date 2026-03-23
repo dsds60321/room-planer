@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { ResultFloorPlanRenderer } from "@/components/floor-plan/result-floor-plan-renderer";
 import { SummaryPanel } from "@/components/result/summary-panel";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useActiveFloorplan } from "@/features/project-shell/use-active-floorplan";
 import { useFloorPlanStore } from "@/store/use-floor-plan-store";

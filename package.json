@@ -9,9 +9,14 @@
     "build": "next build",
     "build:local": "dotenv -e .env.local -- next build",
     "build:prod": "dotenv -e .env.production -- next build",
+    "prepare:standalone": "node scripts/prepare-standalone.mjs",
+    "build:standalone": "npm run build && npm run prepare:standalone",
+    "build:local:standalone": "npm run build:local && npm run prepare:standalone",
+    "build:prod:standalone": "npm run build:prod && npm run prepare:standalone",
     "start": "next start",
     "start:local": "dotenv -e .env.local -- next start",
     "start:prod": "dotenv -e .env.production -- next start",
+    "start:standalone": "node .next/standalone/server.js",
     "lint": "eslint"
   },
   "dependencies": {

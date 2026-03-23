@@ -100,6 +100,43 @@ npm run start
 기본 명령은 현재 셸에 주입된 환경변수 또는 Next 기본 env 로딩 규칙을 따릅니다.  
 환경을 명시적으로 나누고 싶으면 `build:local`, `build:prod`, `start:local`, `start:prod`를 쓰는 편이 안전합니다.
 
+## EC2 배포용 Standalone 출력
+
+이 프로젝트는 `output: "standalone"`으로 설정되어 있습니다.
+
+EC2 업로드용 빌드는 아래 명령으로 만듭니다.
+
+```bash
+npm run build:prod:standalone
+```
+
+그러면 배포에 필요한 파일이 `.next/standalone` 안에 정리되고, `public`, `.next/static`도 함께 복사됩니다.
+
+EC2에 올릴 최소 폴더:
+
+- `.next/standalone/`
+- `.env.production`
+
+EC2 실행:
+
+```bash
+cd .next/standalone
+PORT=3000 node server.js
+```
+
+또는 로컬 확인용:
+
+```bash
+npm run build:local:standalone
+PORT=3000 npm run start:standalone
+```
+
+주의:
+
+- standalone 배포는 `node_modules` 전체를 다시 올릴 필요가 없습니다.
+- DB 연결용 환경변수는 EC2에서 `.env.production` 또는 process manager 환경변수로 반드시 주입해야 합니다.
+- `schema.sql`은 운영에서 수동 테이블 생성 방식을 쓸 때만 별도로 배포하면 됩니다.
+
 ## 현재 서버 구조
 
 - `GET /api/homes`
