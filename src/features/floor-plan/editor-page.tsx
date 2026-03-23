@@ -17,7 +17,6 @@ import {
   Pencil,
   Plus,
   Printer,
-  Sparkles,
   Trash2,
   X,
   XCircle,
@@ -284,7 +283,7 @@ export function FloorPlanEditorPage({
       />
 
       <div className="hidden border-b border-border bg-white md:block">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-3">
+        <div className="mx-auto flex max-w-[1840px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Link href="/" className="hover:text-foreground">
@@ -399,10 +398,6 @@ export function FloorPlanEditorPage({
                 </h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="rounded-md bg-muted/20">
-                  <MousePointer2 className="mr-1 size-3.5" />
-                  선택된 방 {selectedRoomId ? "있음" : "없음"}
-                </Badge>
                 <Button type="button" variant="outline" onClick={toggleSnap}>
                   {snapEnabled ? "스냅 켜짐" : "스냅 꺼짐"}
                 </Button>
@@ -495,10 +490,6 @@ export function FloorPlanEditorPage({
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="rounded-md">
-                      <Sparkles className="mr-1 size-3.5" />
-                      데모 준비됨
-                    </Badge>
                     <Button size="sm" asChild>
                       <Link href={measurePath}>
                         <Plus />

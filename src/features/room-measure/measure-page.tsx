@@ -90,7 +90,11 @@ export function MeasurePage({
             </div>
           }
         >
-          <RoomMeasureForm editorPath={editorPath} />
+          <RoomMeasureForm
+            editorPath={editorPath}
+            homeId={homeId}
+            floorplanId={floorplanId}
+          />
         </Suspense>
       </main>
     </div>

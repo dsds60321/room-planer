@@ -1,10 +1,11 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { type RowDataPacket } from "mysql2/promise";
+import { type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
 
 import { db, ensureProjectSchema } from "@/lib/server/db";
 import {
+  type Door,
   type Floorplan,
   type FloorplanDocument,
   type Home,
@@ -26,9 +27,44 @@ type FloorplanRow = RowDataPacket & {
   name: string;
   roomCount: number;
   status: Floorplan["status"];
-  roomsJson?: string;
-  placementsJson?: string;
   updatedAt: Date | string;
+};
+
+type RoomRow = RowDataPacket & {
+  id: string;
+  floorplanId: string;
+  roomName: string;
+  roomType: Room["roomType"];
+  width: number;
+  depth: number;
+  height: number;
+  area: number;
+  wallThickness: number;
+  label: string;
+  status: Room["status"];
+};
+
+type DoorRow = RowDataPacket & {
+  id: string;
+  roomId: string;
+  wallSide: Door["position"]["wall"];
+  offsetValue: number;
+  offsetMode: Door["position"]["mode"];
+  width: number;
+  swingDirection: Door["swingDirection"];
+  opensToInside: number;
+};
+
+type PlacementRow = RowDataPacket & {
+  roomId: string;
+  floorplanId: string;
+  placed: number;
+  x: number;
+  y: number;
+  attachedTo: string | null;
+  status: Placement["status"];
+  rotation: Placement["rotation"];
+  zIndex: number;
 };
 
 function toIso(value: Date | string) {
@@ -52,19 +88,6 @@ function toFloorplan(row: FloorplanRow): Floorplan {
     status: row.status,
     updatedAt: toIso(row.updatedAt),
   };
-}
-
-function parseJsonArray<T>(value?: string): T[] {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }
 
 function computeStatus(rooms: Room[], placements: Placement[]): Floorplan["status"] {
@@ -239,7 +262,14 @@ export async function getFloorplanDocument(
   document: FloorplanDocument | null;
 }> {
   await ensureProjectSchema();
-  const [rows] = await db.query<(HomeRow & FloorplanRow)[]>(
+  const [rows] = await db.query<
+    (HomeRow &
+      FloorplanRow & {
+        floorplanId: string;
+        floorplanName: string;
+        floorplanUpdatedAt: Date | string;
+      })[]
+  >(
     `
       SELECT
         h.id,
@@ -250,8 +280,6 @@ export async function getFloorplanDocument(
         f.name AS floorplanName,
         f.room_count AS roomCount,
         f.status,
-        f.rooms_json AS roomsJson,
-        f.placements_json AS placementsJson,
         f.updated_at AS floorplanUpdatedAt
       FROM homes h
       INNER JOIN floorplans f ON f.home_id = h.id
@@ -269,12 +297,108 @@ export async function getFloorplanDocument(
     };
   }
 
-  const row = rows[0] as HomeRow &
-    FloorplanRow & {
-      floorplanId: string;
-      floorplanName: string;
-      floorplanUpdatedAt: Date | string;
-    };
+  const row = rows[0];
+  const [roomRows] = await db.query<RoomRow[]>(
+    `
+      SELECT
+        id,
+        floorplan_id AS floorplanId,
+        room_name AS roomName,
+        room_type AS roomType,
+        width,
+        depth,
+        height,
+        area,
+        wall_thickness AS wallThickness,
+        label,
+        status
+      FROM rooms
+      WHERE floorplan_id = ?
+      ORDER BY created_at ASC
+    `,
+    [floorplanId],
+  );
+  const [doorRows] = await db.query<DoorRow[]>(
+    `
+      SELECT
+        id,
+        room_id AS roomId,
+        wall_side AS wallSide,
+        offset_value AS offsetValue,
+        offset_mode AS offsetMode,
+        width,
+        swing_direction AS swingDirection,
+        opens_to_inside AS opensToInside
+      FROM doors
+      WHERE room_id IN (
+        SELECT id FROM rooms WHERE floorplan_id = ?
+      )
+      ORDER BY created_at ASC
+    `,
+    [floorplanId],
+  );
+  const [placementRows] = await db.query<PlacementRow[]>(
+    `
+      SELECT
+        room_id AS roomId,
+        floorplan_id AS floorplanId,
+        placed,
+        x,
+        y,
+        attached_to AS attachedTo,
+        status,
+        rotation,
+        z_index AS zIndex
+      FROM placements
+      WHERE floorplan_id = ?
+      ORDER BY z_index ASC, created_at ASC
+    `,
+    [floorplanId],
+  );
+
+  const doorMap = new Map<string, Door[]>();
+  for (const doorRow of doorRows) {
+    const list = doorMap.get(doorRow.roomId) ?? [];
+    list.push({
+      id: doorRow.id,
+      roomId: doorRow.roomId,
+      position: {
+        wall: doorRow.wallSide,
+        offset: Number(doorRow.offsetValue),
+        mode: doorRow.offsetMode ?? undefined,
+      },
+      width: Number(doorRow.width),
+      swingDirection: doorRow.swingDirection,
+      opensToInside: Boolean(doorRow.opensToInside),
+    });
+    doorMap.set(doorRow.roomId, list);
+  }
+
+  const rooms = roomRows.map((roomRow) => ({
+    id: roomRow.id,
+    roomId: roomRow.id,
+    roomName: roomRow.roomName,
+    roomType: roomRow.roomType,
+    width: Number(roomRow.width),
+    depth: Number(roomRow.depth),
+    height: Number(roomRow.height),
+    area: Number(roomRow.area),
+    wallThickness: Number(roomRow.wallThickness),
+    label: roomRow.label,
+    status: roomRow.status,
+    doors: doorMap.get(roomRow.id) ?? [],
+  }));
+
+  const placements = placementRows.map((placementRow) => ({
+    roomId: placementRow.roomId,
+    placed: Boolean(placementRow.placed),
+    x: Number(placementRow.x),
+    y: Number(placementRow.y),
+    attachedTo: placementRow.attachedTo,
+    status: placementRow.status,
+    rotation: Number(placementRow.rotation) as Placement["rotation"],
+    zIndex: Number(placementRow.zIndex),
+  }));
 
   return {
     home: toHome(row),
@@ -288,8 +412,8 @@ export async function getFloorplanDocument(
     },
     document: {
       floorplanId: row.floorplanId,
-      rooms: parseJsonArray<Room>(row.roomsJson),
-      placements: parseJsonArray<Placement>(row.placementsJson),
+      rooms,
+      placements,
     },
   };
 }
@@ -302,27 +426,120 @@ export async function saveFloorplanDocument(
 ) {
   await ensureProjectSchema();
   const status = computeStatus(rooms, placements);
-  const roomsJson = JSON.stringify(rooms);
-  const placementsJson = JSON.stringify(placements);
+  const connection = await db.getConnection();
 
-  const [result] = await db.execute(
-    `
-      UPDATE floorplans
-      SET
-        rooms_json = ?,
-        placements_json = ?,
-        room_count = ?,
-        status = ?,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND home_id = ?
-    `,
-    [roomsJson, placementsJson, rooms.length, status, floorplanId, homeId],
-  );
+  try {
+    await connection.beginTransaction();
 
-  await db.execute(
-    `UPDATE homes SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    [homeId],
-  );
+    await connection.execute(
+      `DELETE FROM placements WHERE floorplan_id = ?`,
+      [floorplanId],
+    );
+    await connection.execute(
+      `
+        DELETE d FROM doors d
+        INNER JOIN rooms r ON r.id = d.room_id
+        WHERE r.floorplan_id = ?
+      `,
+      [floorplanId],
+    );
+    await connection.execute(
+      `DELETE FROM rooms WHERE floorplan_id = ?`,
+      [floorplanId],
+    );
 
-  return result;
+    for (const room of rooms) {
+      await connection.execute<ResultSetHeader>(
+        `
+          INSERT INTO rooms
+            (id, floorplan_id, room_name, room_type, width, depth, height, area, wall_thickness, label, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          room.id,
+          floorplanId,
+          room.roomName,
+          room.roomType,
+          room.width,
+          room.depth,
+          room.height,
+          room.area,
+          room.wallThickness,
+          room.label,
+          room.status,
+        ],
+      );
+
+      for (const door of room.doors) {
+        await connection.execute<ResultSetHeader>(
+          `
+            INSERT INTO doors
+              (id, room_id, wall_side, offset_value, offset_mode, width, swing_direction, opens_to_inside)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            door.id,
+            room.id,
+            door.position.wall,
+            door.position.offset,
+            door.position.mode ?? null,
+            door.width,
+            door.swingDirection,
+            door.opensToInside ? 1 : 0,
+          ],
+        );
+      }
+    }
+
+    for (const placement of placements) {
+      await connection.execute<ResultSetHeader>(
+        `
+          INSERT INTO placements
+            (room_id, floorplan_id, placed, x, y, attached_to, status, rotation, z_index)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          placement.roomId,
+          floorplanId,
+          placement.placed ? 1 : 0,
+          placement.x,
+          placement.y,
+          placement.attachedTo,
+          placement.status,
+          placement.rotation,
+          placement.zIndex,
+        ],
+      );
+    }
+
+    const roomsJson = JSON.stringify(rooms);
+    const placementsJson = JSON.stringify(placements);
+
+    const [result] = await connection.execute<ResultSetHeader>(
+      `
+        UPDATE floorplans
+        SET
+          room_count = ?,
+          status = ?,
+          rooms_json = ?,
+          placements_json = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND home_id = ?
+      `,
+      [rooms.length, status, roomsJson, placementsJson, floorplanId, homeId],
+    );
+
+    await connection.execute<ResultSetHeader>(
+      `UPDATE homes SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [homeId],
+    );
+
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }

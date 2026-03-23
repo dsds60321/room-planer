@@ -26,10 +26,10 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <header className={`border-b border-border bg-white/95 ${className ?? ""}`}>
-      <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 px-6 py-4">
+      <div className="mx-auto flex w-full max-w-[1840px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <div className="space-y-1">
           <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
-            Room Planner MVP
+            Room Planner
           </p>
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">

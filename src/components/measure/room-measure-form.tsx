@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +11,7 @@ import { RoomMeasurePreview } from "@/components/measure/room-measure-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { saveFloorplanDocument } from "@/lib/api/project-shell";
 import {
   Select,
   SelectContent,
@@ -116,10 +118,20 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-sm text-destructive">{message}</p>;
 }
 
-export function RoomMeasureForm({ editorPath = "/" }: { editorPath?: string }) {
+export function RoomMeasureForm({
+  editorPath = "/",
+  homeId,
+  floorplanId,
+}: {
+  editorPath?: string;
+  homeId: string;
+  floorplanId: string;
+}) {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const roomId = searchParams.get("roomId");
   const rooms = useRoomStore((state) => state.rooms);
   const addRoom = useRoomStore((state) => state.addRoom);
@@ -185,33 +197,59 @@ export function RoomMeasureForm({ editorPath = "/" }: { editorPath?: string }) {
   );
 
   const saveRoom = () =>
-    form.handleSubmit((rawValues) => {
+    form.handleSubmit(async (rawValues) => {
       if (isSaving) {
         return;
       }
+
       setIsSaving(true);
-      const payload = rawValues as MeasuredRoomInput;
-      const targetRoomId = editingRoom?.id ?? addRoom(payload, "measured");
-      const existingPlacement = placements.find(
-        (placement) => placement.roomId === targetRoomId,
-      );
+      setSubmitError(null);
 
-      if (editingRoom) {
-        updateRoom(editingRoom.id, payload, "measured");
+      try {
+        const payload = rawValues as MeasuredRoomInput;
+        const targetRoomId = editingRoom?.id ?? addRoom(payload, "measured");
+        const existingPlacement = placements.find(
+          (placement) => placement.roomId === targetRoomId,
+        );
+
+        if (editingRoom) {
+          updateRoom(editingRoom.id, payload, "measured");
+        }
+
+        placeRoom({
+          roomId: targetRoomId,
+          placed: true,
+          x: existingPlacement?.x ?? 0,
+          y: existingPlacement?.y ?? 0,
+          attachedTo: existingPlacement?.attachedTo ?? null,
+          status: "placed",
+          rotation: 0,
+          zIndex: existingPlacement?.zIndex ?? rooms.length + 1,
+        });
+
+        const nextRooms = useRoomStore.getState().rooms;
+        const nextPlacements = useFloorPlanStore.getState().placedRooms;
+
+        const savedDocument = await saveFloorplanDocument(homeId, floorplanId, {
+          floorplanId,
+          rooms: nextRooms,
+          placements: nextPlacements,
+        });
+
+        queryClient.setQueryData(
+          ["floorplanDocument", homeId, floorplanId],
+          savedDocument,
+        );
+        queryClient.invalidateQueries({ queryKey: ["homes"] });
+        queryClient.invalidateQueries({ queryKey: ["homeFloorplans", homeId] });
+
+        router.push(editorPath);
+      } catch (error) {
+        setSubmitError(
+          error instanceof Error ? error.message : "방 저장 중 오류가 발생했습니다.",
+        );
+        setIsSaving(false);
       }
-
-      placeRoom({
-        roomId: targetRoomId,
-        placed: true,
-        x: existingPlacement?.x ?? 0,
-        y: existingPlacement?.y ?? 0,
-        attachedTo: existingPlacement?.attachedTo ?? null,
-        status: "placed",
-        rotation: 0,
-        zIndex: existingPlacement?.zIndex ?? rooms.length + 1,
-      });
-
-      router.push(editorPath);
     })();
 
   return (
@@ -473,6 +511,7 @@ export function RoomMeasureForm({ editorPath = "/" }: { editorPath?: string }) {
               {isSaving ? "저장 중..." : "완료"}
             </Button>
           </div>
+          <FieldError message={submitError ?? undefined} />
         </form>
       </section>
 

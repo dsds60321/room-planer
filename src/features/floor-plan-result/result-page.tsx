@@ -105,9 +105,6 @@ export function FloorPlanResultPage({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-md bg-muted/20">
-              인쇄 친화 모드
-            </Badge>
             <Button
               type="button"
               variant={mode === "annotated" ? "default" : "outline"}
