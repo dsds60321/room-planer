@@ -9,6 +9,7 @@ OUT_LOG="$LOG_DIR/app.out.log"
 ERR_LOG="$LOG_DIR/app.err.log"
 ENV_FILE="${ENV_FILE:-$APP_DIR/.env.production}"
 SERVER_FILE="$APP_DIR/server.js"
+BUILD_ID_FILE="$APP_DIR/.next/BUILD_ID"
 
 mkdir -p "$LOG_DIR"
 
@@ -26,6 +27,32 @@ require_server() {
     echo "server.js 파일이 없습니다."
     echo "standalone 산출물 내용을 room-planner 폴더에 업로드했는지 확인하세요."
     exit 1
+  fi
+
+  if [[ ! -f "$BUILD_ID_FILE" ]]; then
+    echo ".next/BUILD_ID 파일이 없습니다."
+    echo "SFTP 업로드 시 .next/standalone 내부의 숨김 폴더 .next 가 누락된 상태입니다."
+    echo "server.js, node_modules, public 뿐 아니라 .next 폴더도 같이 업로드해야 합니다."
+    exit 1
+  fi
+}
+
+warn_node_runtime() {
+  if ! command -v node >/dev/null 2>&1; then
+    echo "node 명령을 찾을 수 없습니다."
+    exit 1
+  fi
+
+  local node_version
+  local major
+  local minor
+
+  node_version="$(node -p 'process.versions.node')"
+  IFS=. read -r major minor _ <<<"$node_version"
+
+  if (( major < 20 || (major == 20 && minor < 9) )); then
+    echo "경고: next@16.2.1 공식 지원 Node 버전은 >=20.9.0 입니다. 현재: v$node_version"
+    echo "가능하면 Node 20.9+ 또는 22 LTS로 올린 뒤 실행하세요."
   fi
 }
 
@@ -50,6 +77,7 @@ is_running() {
 }
 
 start() {
+  warn_node_runtime
   require_server
   load_env
 

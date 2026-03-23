@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 
+import { createShortId } from "@/lib/id";
 import { type Door, type MeasuredRoomInput, type Room } from "@/types";
 
 interface RoomState {
@@ -79,7 +80,7 @@ export const useRoomStore = create<RoomState>((set) => ({
       documentKey,
     }),
   addRoom: (input, status = "measured") => {
-    const roomId = `room-${crypto.randomUUID().slice(0, 8)}`;
+    const roomId = createShortId("room");
     set((state) => ({
       rooms: [...state.rooms, toRoom(roomId, input, status)],
       selectedRoomId: roomId,
@@ -115,7 +116,7 @@ export const useRoomStore = create<RoomState>((set) => ({
       ),
     })),
   cloneRoom: (roomId) => {
-    const nextId = `room-${crypto.randomUUID().slice(0, 8)}`;
+    const nextId = createShortId("room");
     const source = useRoomStore.getState().rooms.find((room) => room.id === roomId);
     if (!source) {
       return null;

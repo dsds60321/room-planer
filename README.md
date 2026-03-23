@@ -112,16 +112,33 @@ npm run build:prod:standalone
 
 그러면 배포에 필요한 파일이 `.next/standalone` 안에 정리되고, `public`, `.next/static`도 함께 복사됩니다.
 
+배포 서버 Node 버전은 `20.9.0` 이상을 권장합니다. 이 프로젝트는 `next@16.2.1`을 사용하므로, 하위 버전 Node에서는 standalone 실행 시 런타임 오류가 날 수 있습니다.
+
 EC2에 올릴 최소 폴더:
 
 - `.next/standalone/`
 - `.env.production`
 
+EC2에서 `room-planner` 폴더를 만들고, `.next/standalone` 내부 파일들을 그 폴더 안에 그대로 복사하는 방식을 권장합니다.
+
+예:
+
+```bash
+room-planner/
+  server.js
+  .next/
+  public/
+  node_modules/
+  .env.production
+  deploy.sh
+```
+
 EC2 실행:
 
 ```bash
-cd .next/standalone
-PORT=3000 node server.js
+cd room-planner
+chmod +x deploy.sh
+./deploy.sh start
 ```
 
 또는 로컬 확인용:
@@ -134,8 +151,21 @@ PORT=3000 npm run start:standalone
 주의:
 
 - standalone 배포는 `node_modules` 전체를 다시 올릴 필요가 없습니다.
+- 배포 서버 Node가 낮으면 `crypto.randomUUID is not a function` 같은 오류가 날 수 있습니다. 먼저 `node -v`로 버전을 확인하세요.
 - DB 연결용 환경변수는 EC2에서 `.env.production` 또는 process manager 환경변수로 반드시 주입해야 합니다.
 - `schema.sql`은 운영에서 수동 테이블 생성 방식을 쓸 때만 별도로 배포하면 됩니다.
+- `deploy.sh`는 `.env.production`을 읽어 `server.js`를 백그라운드 실행합니다.
+- 로그는 `logs/` 폴더에 쌓이고, PID는 `.room-planner.pid`에 저장됩니다.
+
+자주 쓰는 명령:
+
+```bash
+./deploy.sh start
+./deploy.sh stop
+./deploy.sh restart
+./deploy.sh status
+./deploy.sh logs
+```
 
 ## 현재 서버 구조
 
