@@ -14,6 +14,7 @@ export type RoomStatus = "draft" | "measured" | "placed";
 export type PlacementStatus = "draft" | "placed" | "locked";
 export type RenderMode = "clean" | "annotated";
 export type RenderStyle = "editor" | "floorplan";
+export type FloorplanStatus = "empty" | "draft" | "complete";
 
 export interface Door {
   id: string;
@@ -62,6 +63,31 @@ export interface Project {
   rooms: Room[];
   placements: Placement[];
   updatedAt: string;
+}
+
+export interface Home {
+  id: string;
+  name: string;
+  updatedAt: string;
+}
+
+export interface HomeListItem extends Home {
+  floorplanCount: number;
+}
+
+export interface Floorplan {
+  id: string;
+  homeId: string;
+  name: string;
+  roomCount: number;
+  status: FloorplanStatus;
+  updatedAt: string;
+}
+
+export interface FloorplanDocument {
+  floorplanId: string;
+  rooms: Room[];
+  placements: Placement[];
 }
 
 export interface WallSegment {

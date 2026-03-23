@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -42,6 +43,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useActiveFloorplan } from "@/features/project-shell/use-active-floorplan";
 import { getRoomTypeLabel } from "@/lib/floorplan/rendering";
 import { formatAreaMm2, formatLength } from "@/lib/utils/format";
 import { useFloorPlanStore } from "@/store/use-floor-plan-store";
@@ -63,13 +65,21 @@ function useIsMobile() {
   return isMobile;
 }
 
-export function FloorPlanEditorPage() {
+export function FloorPlanEditorPage({
+  homeId,
+  floorplanId,
+}: {
+  homeId: string;
+  floorplanId: string;
+}) {
   const isMobile = useIsMobile();
   const [page, setPage] = useState(1);
   const [resetViewToken, setResetViewToken] = useState(0);
   const [wholePlanMode, setWholePlanMode] = useState(false);
   const [roomListOpen, setRoomListOpen] = useState(false);
   const [roomDetailOpen, setRoomDetailOpen] = useState(false);
+
+  const { home, floorplan, isReady, saveState, error } = useActiveFloorplan(homeId, floorplanId);
 
   const rooms = useRoomStore((state) => state.rooms);
   const selectedRoomId = useRoomStore((state) => state.selectedRoomId);
@@ -103,6 +113,10 @@ export function FloorPlanEditorPage() {
     () => rooms.slice((currentPage - 1) * roomsPerPage, currentPage * roomsPerPage),
     [currentPage, rooms],
   );
+  const editorPath = `/homes/${homeId}/floorplans/${floorplanId}`;
+  const measurePath = `${editorPath}/measure`;
+  const resultPath = `${editorPath}/result`;
+  const homePath = `/homes/${homeId}`;
 
   useEffect(() => {
     if (isMobile) {
@@ -199,29 +213,115 @@ export function FloorPlanEditorPage() {
   };
 
   const mobileSaveStatus =
-    history.length === 0 && future.length === 0 ? "저장됨" : "자동 저장됨";
+    saveState === "loading"
+      ? "불러오는 중"
+      : saveState === "saving"
+        ? "저장 중"
+        : saveState === "error"
+          ? "저장 오류"
+          : history.length === 0 && future.length === 0
+            ? "저장됨"
+            : "자동 저장됨";
+
+  if (!isReady) {
+    return (
+      <div className="min-h-screen bg-[#f3f4f6]">
+        <div className="mx-auto max-w-[1600px] px-6 py-8">
+          <div className="rounded-[20px] border border-border bg-white px-6 py-12 text-center text-sm text-muted-foreground">
+            도면 편집 화면을 불러오는 중입니다.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#f3f4f6]">
+        <div className="mx-auto max-w-[1600px] px-6 py-8">
+          <div className="rounded-[20px] border border-border bg-white px-6 py-12 text-center">
+            <h1 className="text-xl font-semibold">도면 데이터를 불러오지 못했습니다</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {(error as Error).message}
+            </p>
+            <Button className="mt-5" asChild>
+              <Link href="/">집 선택으로 돌아가기</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!home || !floorplan) {
+    return (
+      <div className="min-h-screen bg-[#f3f4f6]">
+        <div className="mx-auto max-w-[1600px] px-6 py-8">
+          <div className="rounded-[20px] border border-border bg-white px-6 py-12 text-center">
+            <h1 className="text-xl font-semibold">도면 정보를 찾을 수 없습니다</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              집 또는 도면이 삭제되었을 수 있습니다. 도면 선택 화면으로 돌아가 주세요.
+            </p>
+            <Button className="mt-5" asChild>
+              <Link href="/">집 선택으로 돌아가기</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f4f6]">
       <AppHeader
         className="hidden md:block"
-        projectName="송파 샘플 평면 프로젝트"
-        saveStatus="자동 저장됨"
+        projectName={floorplan.name}
+        saveStatus={mobileSaveStatus}
         onUndo={undo}
         onRedo={redo}
         disableUndo={history.length === 0}
         disableRedo={future.length === 0}
       />
 
+      <div className="hidden border-b border-border bg-white md:block">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <Link href="/" className="hover:text-foreground">
+                홈
+              </Link>
+              <span>/</span>
+              <Link href={homePath} className="hover:text-foreground">
+                {home.name}
+              </Link>
+              <span>/</span>
+              <span className="truncate text-foreground">{floorplan.name}</span>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              현재 집과 도면 컨텍스트를 유지한 상태로 방 배치와 측정을 편집합니다.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="rounded-md bg-muted/20">
+              <Check className="mr-1 size-3.5" />
+              {mobileSaveStatus}
+            </Badge>
+            <Button type="button" variant="outline" asChild>
+              <Link href={homePath}>도면 목록으로 돌아가기</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur md:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <p className="text-[11px] font-medium tracking-[0.2em] text-muted-foreground uppercase">
-              Room Planner
+              {home.name}
             </p>
             <div className="mt-1 flex items-center gap-2">
               <h1 className="truncate text-base font-semibold tracking-tight">
-                송파 샘플 평면
+                {floorplan.name}
               </h1>
               <Badge variant="outline" className="rounded-md bg-muted/50 px-2 py-0.5 text-[11px]">
                 <CheckCircle2 className="mr-1 size-3" />
@@ -268,10 +368,13 @@ export function FloorPlanEditorPage() {
                   {snapEnabled ? "스냅 끄기" : "스냅 켜기"}
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/result">
+                  <Link href={resultPath}>
                     <Printer />
                     결과 보기
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={homePath}>도면 목록으로 돌아가기</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -341,7 +444,7 @@ export function FloorPlanEditorPage() {
                   {desktopWholePlanMode ? "편집 패널 보기" : "전체 도면 보기"}
                 </Button>
                 <Button type="button" variant="outline" asChild>
-                  <Link href="/result">
+                  <Link href={resultPath}>
                     <Printer />
                     결과 보기
                   </Link>
@@ -397,7 +500,7 @@ export function FloorPlanEditorPage() {
                       데모 준비됨
                     </Badge>
                     <Button size="sm" asChild>
-                      <Link href="/measure">
+                      <Link href={measurePath}>
                         <Plus />
                         측정 시작하기
                       </Link>
@@ -415,6 +518,7 @@ export function FloorPlanEditorPage() {
                       onLoad={() => focusRoom(room.id)}
                       onRemovePlacement={() => removeFromPlan(room.id)}
                       onDelete={() => deleteRoomWithConfirm(room.id)}
+                      measureHref={`${measurePath}?roomId=${room.id}`}
                     />
                   ))}
                 </div>
@@ -460,7 +564,7 @@ export function FloorPlanEditorPage() {
                 먼저 방을 추가한 뒤 배치와 조합을 시작하세요.
               </p>
               <Button className="mt-5" asChild>
-                <Link href="/measure">
+                <Link href={measurePath}>
                   <Plus />
                   방 추가
                 </Link>
@@ -570,7 +674,7 @@ export function FloorPlanEditorPage() {
                 </Button>
               ) : (
                 <Button type="button" size="sm" asChild>
-                  <Link href="/measure">
+                  <Link href={measurePath}>
                     <Plus />
                     방 추가
                   </Link>
@@ -658,7 +762,7 @@ export function FloorPlanEditorPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <Button asChild className="h-11 rounded-xl">
-                  <Link href={`/measure?roomId=${selectedRoom.id}`}>
+                  <Link href={`${measurePath}?roomId=${selectedRoom.id}`}>
                     <Pencil />
                     수정하기
                   </Link>

@@ -20,6 +20,7 @@ export function RoomCard({
   room,
   placement,
   selected,
+  measureHref,
   onLoad,
   onRemovePlacement,
   onDelete,
@@ -28,6 +29,7 @@ export function RoomCard({
   room: Room;
   placement?: Placement;
   selected?: boolean;
+  measureHref: string;
   onLoad: () => void;
   onRemovePlacement: () => void;
   onDelete: () => void;
@@ -132,7 +134,7 @@ export function RoomCard({
           asChild
           onClick={(event) => event.stopPropagation()}
         >
-          <Link href={`/measure?roomId=${room.id}`}>
+          <Link href={measureHref}>
             <Pencil />
             수정
           </Link>

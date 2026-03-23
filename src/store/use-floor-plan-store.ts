@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 
-import { mockPlacements } from "@/features/floor-plan/mock-data";
 import { type Placement, type RenderMode } from "@/types";
 
 interface FloorPlanSnapshot {
@@ -14,8 +13,18 @@ interface FloorPlanSnapshot {
 }
 
 interface FloorPlanState extends FloorPlanSnapshot {
+  documentKey: string | null;
   history: FloorPlanSnapshot[];
   future: FloorPlanSnapshot[];
+  hydrateFloorPlan: (
+    placements: Placement[],
+    options?: Partial<
+      Pick<
+        FloorPlanSnapshot,
+        "scale" | "zoom" | "snapEnabled" | "resultRenderMode"
+      >
+    > & { documentKey?: string | null },
+  ) => void;
   pushHistory: () => void;
   setPlacedRooms: (placements: Placement[]) => void;
   moveRoom: (roomId: string, x: number, y: number) => void;
@@ -30,7 +39,7 @@ interface FloorPlanState extends FloorPlanSnapshot {
 }
 
 const initialSnapshot: FloorPlanSnapshot = {
-  placedRooms: mockPlacements,
+  placedRooms: [],
   scale: 0.08,
   zoom: 0.6,
   snapEnabled: true,
@@ -51,8 +60,20 @@ const SNAP = 100;
 
 export const useFloorPlanStore = create<FloorPlanState>((set, get) => ({
   ...initialSnapshot,
+  documentKey: null,
   history: [],
   future: [],
+  hydrateFloorPlan: (placements, options) =>
+    set((state) => ({
+      placedRooms: placements.map((placement) => ({ ...placement })),
+      scale: options?.scale ?? initialSnapshot.scale,
+      zoom: options?.zoom ?? initialSnapshot.zoom,
+      snapEnabled: options?.snapEnabled ?? state.snapEnabled,
+      resultRenderMode: options?.resultRenderMode ?? initialSnapshot.resultRenderMode,
+      documentKey: options?.documentKey ?? null,
+      history: [],
+      future: [],
+    })),
   pushHistory: () =>
     set((state) => ({
       history: [...state.history.slice(-29), createSnapshot(state)],

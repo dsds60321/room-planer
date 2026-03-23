@@ -1,5 +1,5 @@
-import { FloorPlanResultPage } from "@/features/floor-plan-result/result-page";
+import { redirect } from "next/navigation";
 
 export default function ResultRoute() {
-  return <FloorPlanResultPage />;
+  redirect("/");
 }

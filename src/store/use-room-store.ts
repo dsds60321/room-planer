@@ -2,12 +2,17 @@
 
 import { create } from "zustand";
 
-import { mockRooms } from "@/features/floor-plan/mock-data";
 import { type Door, type MeasuredRoomInput, type Room } from "@/types";
 
 interface RoomState {
   rooms: Room[];
   selectedRoomId: string | null;
+  documentKey: string | null;
+  hydrateRooms: (
+    rooms: Room[],
+    selectedRoomId?: string | null,
+    documentKey?: string | null,
+  ) => void;
   addRoom: (input: MeasuredRoomInput, status?: Room["status"]) => string;
   updateRoom: (
     roomId: string,
@@ -58,8 +63,21 @@ function toRoom(
 }
 
 export const useRoomStore = create<RoomState>((set) => ({
-  rooms: mockRooms,
-  selectedRoomId: mockRooms[0]?.id ?? null,
+  rooms: [],
+  selectedRoomId: null,
+  documentKey: null,
+  hydrateRooms: (rooms, selectedRoomId = rooms[0]?.id ?? null, documentKey = null) =>
+    set({
+      rooms: rooms.map((room) => ({
+        ...room,
+        doors: room.doors.map((door) => ({
+          ...door,
+          position: { ...door.position },
+        })),
+      })),
+      selectedRoomId,
+      documentKey,
+    }),
   addRoom: (input, status = "measured") => {
     const roomId = `room-${crypto.randomUUID().slice(0, 8)}`;
     set((state) => ({

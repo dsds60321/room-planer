@@ -1,5 +1,5 @@
-import { MeasurePage } from "@/features/room-measure/measure-page";
+import { redirect } from "next/navigation";
 
 export default function MeasureRoute() {
-  return <MeasurePage />;
+  redirect("/");
 }

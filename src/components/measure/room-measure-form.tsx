@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { RoomMeasurePreview } from "@/components/measure/room-measure-preview";
@@ -116,9 +116,10 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-sm text-destructive">{message}</p>;
 }
 
-export function RoomMeasureForm() {
+export function RoomMeasureForm({ editorPath = "/" }: { editorPath?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isSaving, setIsSaving] = useState(false);
   const roomId = searchParams.get("roomId");
   const rooms = useRoomStore((state) => state.rooms);
   const addRoom = useRoomStore((state) => state.addRoom);
@@ -185,6 +186,10 @@ export function RoomMeasureForm() {
 
   const saveRoom = () =>
     form.handleSubmit((rawValues) => {
+      if (isSaving) {
+        return;
+      }
+      setIsSaving(true);
       const payload = rawValues as MeasuredRoomInput;
       const targetRoomId = editingRoom?.id ?? addRoom(payload, "measured");
       const existingPlacement = placements.find(
@@ -206,7 +211,7 @@ export function RoomMeasureForm() {
         zIndex: existingPlacement?.zIndex ?? rooms.length + 1,
       });
 
-      router.push("/");
+      router.push(editorPath);
     })();
 
   return (
@@ -462,10 +467,10 @@ export function RoomMeasureForm() {
 
           <div className="flex items-center justify-between border-t border-border pt-4">
             <Button type="button" variant="outline" asChild>
-              <Link href="/">취소</Link>
+              <Link href={editorPath}>취소</Link>
             </Button>
-            <Button type="button" onClick={() => saveRoom()}>
-              완료
+            <Button type="button" onClick={() => saveRoom()} disabled={isSaving}>
+              {isSaving ? "저장 중..." : "완료"}
             </Button>
           </div>
         </form>

@@ -1,5 +1,5 @@
-import { FloorPlanEditorPage } from "@/features/floor-plan/editor-page";
+import { HomeSelectionPage } from "@/features/project-shell/home-selection-page";
 
 export default function HomePage() {
-  return <FloorPlanEditorPage />;
+  return <HomeSelectionPage />;
 }
