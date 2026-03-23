@@ -1,5 +1,7 @@
 "use client";
 
+import type Konva from "konva";
+import type { CSSProperties, ReactNode, Ref } from "react";
 import { useState } from "react";
 import { Layer, Stage } from "react-konva";
 
@@ -11,27 +13,42 @@ interface FloorPlanCanvasProps {
   showGrid?: boolean;
   className?: string;
   backgroundClassName?: string;
-  children: (viewport: { width: number; height: number }) => React.ReactNode;
+  style?: CSSProperties;
+  stageRef?: Ref<Konva.Stage>;
+  viewportOverride?: { width: number; height: number };
+  children: (viewport: { width: number; height: number }) => ReactNode;
 }
 
 export function FloorPlanCanvas({
   showGrid = false,
   className,
   backgroundClassName,
+  style,
+  stageRef,
+  viewportOverride,
   children,
 }: FloorPlanCanvasProps) {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
-  const size = useElementSize(element);
+  const measuredSize = useElementSize(element);
+  const size = viewportOverride ?? measuredSize;
+  const resolvedStyle = viewportOverride
+    ? {
+        width: viewportOverride.width,
+        height: viewportOverride.height,
+        ...style,
+      }
+    : style;
 
   return (
     <div
       ref={setElement}
       className={className}
+      style={resolvedStyle}
     >
       {showGrid ? <GridBackground className={backgroundClassName} /> : null}
       <div className="absolute inset-0 overflow-hidden rounded-[18px]">
         {size.width > 0 && size.height > 0 ? (
-          <Stage width={size.width} height={size.height}>
+          <Stage ref={stageRef} width={size.width} height={size.height}>
             <Layer>{children(size)}</Layer>
           </Stage>
         ) : null}

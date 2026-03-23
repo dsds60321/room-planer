@@ -1,5 +1,7 @@
 "use client";
 
+import type Konva from "konva";
+import type { CSSProperties, Ref } from "react";
 import React from "react";
 import { Group } from "react-konva";
 
@@ -18,22 +20,34 @@ export function ResultFloorPlanRenderer({
   placements,
   mode,
   className,
+  style,
   padding = 96,
   zoom = 1,
+  stageRef,
+  viewportOverride,
+  showGridBackground = false,
 }: {
   rooms: Room[];
   placements: Placement[];
   mode: RenderMode;
   className?: string;
+  style?: CSSProperties;
   padding?: number;
   zoom?: number;
+  stageRef?: Ref<Konva.Stage>;
+  viewportOverride?: { width: number; height: number };
+  showGridBackground?: boolean;
 }) {
   return (
     <FloorPlanCanvas
+      stageRef={stageRef}
+      viewportOverride={viewportOverride}
+      showGrid={showGridBackground}
       className={
         className ??
         "relative min-h-[760px] overflow-hidden rounded-[24px] border border-zinc-200 bg-[#fcfcfb]"
       }
+      style={style}
     >
       {(viewport) => {
         const context = createRenderContext({
@@ -59,12 +73,11 @@ export function ResultFloorPlanRenderer({
             {context.rooms.map((item) => (
               <Group key={`${item.room.id}-fill`} x={item.px.x} y={item.px.y}>
                 <RoomShape
-                key={`${item.room.id}-fill`}
-                room={item.room}
-                width={item.px.width}
-                depth={item.px.depth}
-                wallThickness={item.px.wallThickness}
-                showOutline={false}
+                  room={item.room}
+                  width={item.px.width}
+                  depth={item.px.depth}
+                  wallThickness={item.px.wallThickness}
+                  showOutline={false}
                 />
               </Group>
             ))}
