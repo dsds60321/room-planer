@@ -166,4 +166,4 @@ erDiagram
 - [x] Standalone 산출물 기반 배포 스크립트 제공
 
 
-![demo.gif](https://github.com/dsds60321/room-planner/blob/main/public/demo.gif)
+![demo.gif](https://github.com/dsds60321/room-planer/blob/main/public/demo.gif)
