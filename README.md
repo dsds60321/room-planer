@@ -164,3 +164,6 @@ erDiagram
 - [x] 방 복제 및 삭제
 - [x] 결과 화면 PNG 다운로드
 - [x] Standalone 산출물 기반 배포 스크립트 제공
+
+
+![demo.gif](https://github.com/dsds60321/room-planner/blob/main/public/demo.gif)
