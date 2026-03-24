@@ -1,4 +1,5 @@
 # Room Planner
+![demo.gif](https://github.com/dsds60321/room-planer/blob/main/public/demo.gif)
 
 > 집/도면 워크스페이스에서 방 실측값을 입력하고, 평면을 배치하고, 결과 이미지를 내보내는 Next.js 기반 편집 도구입니다.
 
@@ -164,6 +165,3 @@ erDiagram
 - [x] 방 복제 및 삭제
 - [x] 결과 화면 PNG 다운로드
 - [x] Standalone 산출물 기반 배포 스크립트 제공
-
-
-![demo.gif](https://github.com/dsds60321/room-planer/blob/main/public/demo.gif)
